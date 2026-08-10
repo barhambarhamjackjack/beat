@@ -1,0 +1,29 @@
+:root{--bg:#130e0a;--surface:#1e1813;--fg:#f6f1e9;--muted:#aca397;--ember:#fe5a1d;--ember-soft:#fcb52c;--border:#332c27}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:720px;margin:0 auto;padding:48px 24px 96px}
+header{border-bottom:1px solid var(--border);padding-bottom:24px;margin-bottom:40px}
+.brand{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:var(--fg)}
+.mark{width:28px;height:28px;border-radius:9px;background:linear-gradient(135deg,var(--ember),#e94937)}
+.brand strong{font-size:18px;letter-spacing:-.01em}
+nav{margin-top:18px;display:flex;flex-wrap:wrap;gap:18px}
+nav a{color:var(--muted);text-decoration:none;font-size:14px}
+nav a:hover,nav a.on{color:var(--ember)}
+h1{font-size:32px;line-height:1.15;letter-spacing:-.02em;margin:0 0 8px}
+h2{font-size:19px;margin:40px 0 10px;color:var(--ember-soft);letter-spacing:-.01em}
+h3{font-size:16px;margin:26px 0 6px}
+p,li{color:#d9d2c8}
+.lede{font-size:18px;color:var(--fg)}
+.meta{color:var(--muted);font-size:13px;margin:0 0 32px}
+a{color:var(--ember)}
+ul{padding-left:20px}
+li{margin:6px 0}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 22px;margin:24px 0}
+.card p:last-child{margin-bottom:0}
+.warn{border-color:rgba(254,90,29,.4);background:#2b1a12}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+th{color:var(--ember-soft);font-weight:600}
+footer{margin-top:64px;padding-top:24px;border-top:1px solid var(--border);color:var(--muted);font-size:13px}
+code{background:var(--surface);padding:2px 6px;border-radius:5px;font-size:14px}
+.btn{display:inline-block;background:var(--ember);color:#fff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:600;font-size:15px;margin-top:8px}
