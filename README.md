@@ -1,4 +1,4 @@
-# Patch — legal & support site
+# Bobby — legal & support site
 
 Five static pages. No build step, no dependencies. Publishing takes about five minutes.
 
@@ -28,7 +28,7 @@ constants in `src/lib/constants.ts` and resubmit. Nothing else changes.
 
 ## A note on these documents
 
-They are written specifically for Patch as it actually behaves — anonymous
+They are written specifically for Bobby as it actually behaves — anonymous
 device IDs, moderated user content, optional foreground-only location, a UK
 sole trader as controller. They are not a generic template, and the App Store
 sections match what the app really does.
