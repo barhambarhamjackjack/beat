@@ -32,6 +32,7 @@
   <tr><td><strong>Approximate or precise location</strong>, only when you tap the location button</td><td>To centre the map on you, or to place a report accurately</td><td>Consent &mdash; granted through the iOS permission prompt, revocable in Settings</td></tr>
   <tr><td><strong>Email address</strong>, only if you join a borough waiting list</td><td>To tell you when Patch opens in your borough</td><td>Consent &mdash; you chose to submit it</td></tr>
   <tr><td><strong>A push notification token</strong>, only if you enable alerts</td><td>To tell you when something is reported near a place you saved, and when your own report goes live</td><td>Consent &mdash; revocable in Settings</td></tr>
+  <tr><td><strong>Your approximate position, if you switch on nearby alerts</strong> &mdash; an optional setting, off unless you turn it on</td><td>To tell you when something is reported within a kilometre of where you are, including while Patch is closed. Kept deliberately coarse: coordinates are rounded to roughly 100 metres before they are stored, and rounded again by the database, so no precise position is ever held. <strong>Only your most recent position is kept</strong> &mdash; each update overwrites the last, so there is no location history and no trail of where you have been. It is deleted automatically after 14 days without an update, immediately when you switch the setting off, and immediately when you delete your account. No other user can see it under any circumstances, and it is never attached to anything you post</td><td>Consent &mdash; you turn it on, and turning it off deletes it</td></tr>
   <tr><td><strong>Saved places</strong> &mdash; a name you choose, an approximate location, and how far around it you want to be told about</td><td>To work out whether a report is near enough to alert you about. Stored deliberately imprecisely: coordinates are rounded to roughly 100 metres and only the outward half of a postcode is kept, so &ldquo;W11&rdquo; rather than &ldquo;W11 4UA&rdquo;. Visible only to you, never attached to anything you post, and never shared with another user</td><td>Consent &mdash; you chose to add it, and removing it deletes it</td></tr>
 </table>
 
@@ -44,11 +45,14 @@
 <h3>What Patch does not collect</h3>
 <ul>
   <li>No name, date of birth, phone number or postal address</li>
-  <li>No contacts, photos or microphone access</li>
+  <li>No name, contacts, or access to your photo library beyond the photo or video you choose to attach</li>
   <li>No advertising identifier, and no tracking across other companies' apps or websites</li>
   <li>No analytics SDKs and no third-party advertising</li>
-  <li>Location is <strong>never</strong> collected in the background &mdash; only while the app is open, and only when you ask for it</li>
+  <li>No advertising or profiling of any kind, and no location history &mdash; see below for exactly what is kept</li>
 </ul>
+
+<h3>Video</h3>
+<p>You can attach one video of up to 30 seconds to a report. It is compressed on your phone before it is uploaded, and it is <strong>not visible to anyone</strong> until a moderator has watched it and approved the report &mdash; the same rule photos follow. Video records sound as well as picture: please film what happened rather than who was there. Footage that identifies a person, shows a number plate, or captures a conversation will have the report removed. Deleting your report deletes the video with it.</p>
 
 <h2>What is public</h2>
 <p>Once a moderator approves it, a report's category, title, description, area and coordinates are visible to everyone using Patch. <strong>Your identity is not attached and is never shown</strong> &mdash; not your name, not your email, and not an account identifier. Other users cannot tell which reports came from the same person; the app is never sent that information. Please treat anything you write in a report as public and permanent &mdash; do not include information that identifies you or anyone else.</p>
@@ -68,7 +72,7 @@
 </ul>
 
 <h2>Your rights</h2>
-<p>Under UK GDPR you may request access to your data, correction, erasure, restriction of processing, or portability, and you may object to processing based on legitimate interests. You can withdraw consent for location or notifications at any time in iOS Settings.</p>
+<p>Under UK GDPR you may request access to your data, correction, erasure, restriction of processing, or portability, and you may object to processing based on legitimate interests. You can withdraw consent for location or notifications at any time in iOS Settings, and you can switch nearby alerts off inside Patch under the You tab &mdash; which deletes the position Patch holds rather than merely stopping it being updated.</p>
 
 <div class="card">
   <p><strong>To exercise any of these, use the in-app route:</strong> open Patch, go to <em>You &rarr; Delete my account</em>. It removes your account and everything in it immediately, revokes Patch's access to your Apple ID, and requires no email to us.</p>
