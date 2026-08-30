@@ -11,13 +11,13 @@
 <div class="wrap">
 <header>
   <a class="brand" href="index.html"><span class="mark"></span><strong>Bobby</strong></a>
-  <nav><a href="index.html">Home</a><a href="privacy.html" class="on">Privacy</a><a href="terms.html">Terms</a><a href="support.html">Support</a><a href="delete-my-data.html">Delete my account</a></nav>
+  <nav><a href="index.html">Home</a><a href="privacy.html" class="on">Privacy</a><a href="terms.html">Terms</a><a href="support.html">Support</a><a href="delete-my-data.html">Delete my data</a></nav>
 </header>
 
 <h1>Privacy policy</h1>
-<p class="meta">Last updated 15 August 2026</p>
+<p class="meta">Last updated 30 August 2026</p>
 
-<p class="lede">Bobby is designed to need as little about you as possible. You can read the map without signing in at all. Contributing needs a Sign in with Apple account &mdash; and even then, your reports are shown anonymously and no tracking follows you across other apps or websites. Comments are the one thing that carries a name, and it is a name you choose rather than your real one.</p>
+<p class="lede">Bobby is designed to need as little about you as possible, and to show even less. You sign in so that contributions can be held to account; nobody using Bobby is ever told who wrote what.</p>
 
 <h2>Who is responsible for your data</h2>
 <p>The data controller is <strong>Jack Barham</strong>, a sole trader based in the United Kingdom, contactable at <a href="mailto:jack@barhamfamily.com">jack@barhamfamily.com</a>. This policy is written to meet the UK GDPR and the Data Protection Act 2018.</p>
@@ -25,76 +25,55 @@
 <h2>What Bobby collects</h2>
 <table>
   <tr><th>Data</th><th>Why</th><th>Lawful basis</th></tr>
-  <tr><td><strong>Your Apple account identifier</strong>, and the email address Apple shares &mdash; real, or a private relay address if you chose &ldquo;Hide My Email&rdquo;</td><td>To hold an account: so your reports are yours, so you can only corroborate once, and so someone who abuses Bobby can actually be stopped rather than simply reinstalling</td><td>Contract &mdash; we cannot provide an account without it. Signing in is entirely optional; reading the map is not gated.</td></tr>
-  <tr><td><strong>Your name</strong>, if Apple shares it on first sign-in</td><td>Shown only to you, on your own account screen. It is never attached to a report, never attached to a comment, and never shown to anyone else. It is used once, to suggest a display name you can change or delete before anything is saved.</td><td>Contract</td></tr>
-  <tr><td><strong>A display name and a profile picture</strong> &mdash; both optional, both chosen by you</td><td>Shown beside your comments, together with the standing tier you have earned. Both are checked by a moderator before anyone else sees them, and either can be changed or removed at any time. <strong>Neither ever appears on a report.</strong> Reports carry no author, so nobody &mdash; including anyone reading your comments &mdash; can work out what you have reported. Profile pictures have their location and camera data stripped on your device before they are uploaded</td><td>Consent &mdash; you choose them, and removing them deletes them</td></tr>
-  <tr><td><strong>An Apple refresh token</strong></td><td>Held solely so that deleting your account can revoke Bobby's access to your Apple ID, which Apple requires. Never used for anything else.</td><td>Legal obligation and legitimate interests</td></tr>
-  <tr><td><strong>Report content</strong> &mdash; category, title, description, area, coordinates, time</td><td>This is the map. Approved reports are public. Published coordinates are always rounded before they are stored, and how far depends on how crowded the area is &mdash; about 55 metres in a city, about 250 metres in a village, where a smaller square would identify a single house rather than a stretch of street.</td><td>Legitimate interests &mdash; community safety information</td></tr>
-  <tr><td><strong>Approximate or precise location</strong>, only when you tap the location button</td><td>To centre the map on you, or to place a report accurately</td><td>Consent &mdash; granted through the iOS permission prompt, revocable in Settings</td></tr>
-  <tr><td><strong>Email address</strong>, only if you ask to be told when Bobby reaches your area</td><td>To tell you when Bobby opens where you live</td><td>Consent &mdash; you chose to submit it</td></tr>
-  <tr><td><strong>A push notification token</strong>, only if you enable alerts</td><td>To send the alerts described under <a href="#notifications">What Bobby sends you</a> &mdash; including when something is reported near a place you saved and when your own report goes live</td><td>Consent &mdash; revocable in Settings</td></tr>
-  <tr><td><strong>Your approximate position, if you switch on nearby alerts</strong> &mdash; an optional setting, off unless you turn it on</td><td>To tell you when something is reported within a kilometre of where you are, including while Bobby is closed. Kept deliberately coarse: coordinates are rounded to roughly 100 metres before they are stored, and rounded again by the database, so no precise position is ever held. <strong>Only your most recent position is kept</strong> &mdash; each update overwrites the last, so there is no location history and no trail of where you have been. It is deleted automatically after 14 days without an update, immediately when you switch the setting off, and immediately when you delete your account. No other user can see it under any circumstances, and it is never attached to anything you post</td><td>Consent &mdash; you turn it on, and turning it off deletes it</td></tr>
-  <tr><td><strong>The area you have selected</strong> &mdash; one of the places Bobby currently covers</td><td>Bobby shows one area at a time, and you pick which. The choice is held on your phone and also on our server, because the weekly summary below is prepared while the app is closed and has to know where to address it. It is a setting, not a position: it records which area you chose, never where you are.</td><td>Legitimate interests &mdash; sending you a summary of the area you asked for</td></tr>
-  <tr><td><strong>Saved places</strong> &mdash; a name you choose, an approximate location, and how far around it you want to be told about</td><td>To work out whether a report is near enough to alert you about. Stored deliberately imprecisely: coordinates are rounded to roughly 100 metres and only the outward half of a postcode is kept, so &ldquo;W11&rdquo; rather than &ldquo;W11 4UA&rdquo;. Visible only to you, never attached to anything you post, and never shared with another user</td><td>Consent &mdash; you chose to add it, and removing it deletes it</td></tr>
+  <tr><td><strong>A Sign in with Apple account identifier</strong>, and an email address &mdash; which is a relay address if you chose &ldquo;Hide My Email&rdquo;</td><td>So contributions can be held to account, so you can confirm a report only once, and so blocks and your own drafts follow you to a new phone</td><td>Contract &mdash; you cannot contribute without an account, and the service cannot work without one</td></tr>
+  <tr><td><strong>Report content</strong> &mdash; category, title, description, area, coordinates, time, and any photo or video you attach</td><td>This is the map. Published reports are public.</td><td>Legitimate interests &mdash; community safety information</td></tr>
+  <tr><td><strong>Your location while the app is open</strong>, once you allow it</td><td>To show how far away things are, and to place a report accurately</td><td>Consent &mdash; granted through the iOS prompt, revocable in Settings</td></tr>
+  <tr><td><strong>Your location while the app is closed</strong> &mdash; only if you switch on nearby alerts, and only ever rounded to about 110 metres</td><td>To tell you when something is reported within a kilometre of you</td><td>Consent &mdash; off by default, switched on by you, revocable in the app and in Settings</td></tr>
+  <tr><td><strong>Which area you have chosen</strong>, and any places you save</td><td>To show you the right map, and to alert you about the places you asked about</td><td>Consent &mdash; you chose them</td></tr>
+  <tr><td><strong>A postcode district</strong>, if you join the waiting list for somewhere Bobby is not yet live</td><td>To tell everyone waiting when that area opens</td><td>Consent &mdash; you chose to submit it</td></tr>
+  <tr><td><strong>A push notification token</strong>, one per device, only if you enable alerts</td><td>To deliver the alerts you asked for</td><td>Consent &mdash; revocable in Settings</td></tr>
 </table>
 
-<h3>What signing in does not do</h3>
-<p>Sign in with Apple tells Bobby your account identifier and an email address. It does not give Bobby access to your contacts, your other apps, your purchases, or anything else in your Apple account. If you choose &ldquo;Hide My Email&rdquo;, Bobby never learns your real address &mdash; and since Bobby does not send marketing email, that costs you nothing.</p>
-
-<table style="display:none">
-</table>
+<h3>About background location, plainly</h3>
+<p>Nearby alerts are the one feature that can look at where you are when Bobby is closed, so here is exactly what it does. It is <strong>off unless you turn it on</strong>. It uses iOS significant-change monitoring rather than continuous GPS, so it wakes when you have moved a few hundred metres, using radios your phone is already listening to. Your position is <strong>rounded to about 110 metres before it leaves your phone</strong>, and rounded again when it arrives. <strong>Only the most recent one is kept</strong> &mdash; there is no history, and no track. Nothing is sent if you have not moved. Switching it off deletes the stored position rather than merely stopping the updates, and a stored position is deleted automatically after 14 days regardless.</p>
 
 <h3>What Bobby does not collect</h3>
 <ul>
-  <li>No name, date of birth, phone number or postal address</li>
-  <li>No name, contacts, or access to your photo library beyond the photo or video you choose to attach</li>
+  <li>No name (unless you choose a display handle), date of birth, phone number or postal address</li>
+  <li>No contacts, and no access to your photo library or camera except for the specific photo or clip you choose to attach to a report</li>
+  <li>No audio except the sound recorded as part of a video you attach; Bobby never records audio on its own</li>
   <li>No advertising identifier, and no tracking across other companies' apps or websites</li>
   <li>No analytics SDKs and no third-party advertising</li>
-  <li>No advertising or profiling of any kind, and no location history &mdash; see below for exactly what is kept</li>
+  <li>No continuous location tracking, and no location history &mdash; see above</li>
 </ul>
 
-<h3>Video</h3>
-<p>You can attach one video of up to 30 seconds to a report. It is compressed on your phone before it is uploaded, and it is <strong>not visible to anyone</strong> until a moderator has watched it and approved the report &mdash; the same rule photos follow. Video records sound as well as picture. Footage that names a person or shows where they live will have the report removed; faces and number plates are permitted. Deleting your report deletes the video with it.</p>
-
-<h2 id="notifications">What Bobby sends you</h2>
-<p>Notifications are the one part of Bobby that reaches you when you are not using it, so it is worth being exact about what they are and what triggers them. Every one of these needs notifications switched on, and all of them stop the moment you turn them off in iOS Settings.</p>
-<table>
-  <tr><th>What</th><th>Who gets it</th></tr>
-  <tr><td>Your report has been approved, or verified by neighbours</td><td>You, about your own report</td></tr>
-  <tr><td>Someone commented on your report, or replied in a thread you are part of</td><td>You, about a conversation you are in</td></tr>
-  <tr><td>A report you backed turned out to be verified</td><td>You, about a report you corroborated</td></tr>
-  <tr><td>Something was reported near a place you saved</td><td>Only people who have saved a place</td></tr>
-  <tr><td>Something was reported within a kilometre of you</td><td>Only people who have switched nearby alerts on</td></tr>
-  <tr><td>A short weekly summary of your area, on a Saturday morning &mdash; including when the answer is that nothing happened</td><td>Anyone signed in, based on the area you selected</td></tr>
-  <tr><td>A new month of Home Office crime figures has been published for your area</td><td>Anyone signed in, based on the area you selected</td></tr>
-  <tr><td>An occasional invitation to confirm whether you saw something reported very close to you</td><td>Only people who have switched nearby alerts on</td></tr>
-  <tr><td>A single reminder, a week after you join, if you have never filed a report</td><td>Once per account, ever</td></tr>
-</table>
-<p>Two limits apply to all of them. Nothing is sent between 9pm and 8am &mdash; anything generated overnight waits until the morning rather than being discarded &mdash; and no account receives more than six notifications in any 24 hours, whatever happens. Bobby has never sent a marketing message and does not intend to.</p>
-
 <h2>What is public</h2>
-<p>Once a moderator approves it, a report's category, title, description, area and coordinates are visible to everyone using Bobby. <strong>Your identity is not attached and is never shown</strong> &mdash; not your name, not your email, and not an account identifier. Other users cannot tell which reports came from the same person; the app is never sent that information. Please treat anything you write in a report as public and permanent &mdash; do not include information that identifies you or anyone else.</p>
+<p>Once it is published, a report's category, title, description, area, coordinates and any attached media are visible to everyone using Bobby. <strong>Your identity is not attached and is never shown</strong> &mdash; not your name, not your email, and not an account identifier. Other people cannot tell which reports came from the same person; the app is never sent that information. Coordinates are rounded to a privacy grid before they are stored &mdash; about 56 metres in a London borough, about 250 metres in a village &mdash; so a pin describes a street, not a door.</p>
+<p>If you choose a display handle it appears on your comments, and it is moderated before it is approved. Please treat anything you write as public and permanent, and do not include information that identifies you or anyone else.</p>
+
+<h2>Automated screening of what you post</h2>
+<p>Reports are screened automatically before they appear, to catch content that names or locates a private individual. Anything the screener is unsure about is held for a person to look at, and anything it rejects can be appealed by emailing us. The decision that matters &mdash; whether your report is published &mdash; is never taken by the automated step alone in a case it is not confident about.</p>
 
 <h2>Who your data is shared with</h2>
-<p>Bobby runs on <a href="https://supabase.com/privacy">Supabase</a> (database and hosting) and uses <a href="https://expo.dev/privacy">Expo</a>'s push notification service to deliver alerts. Map tiles are served by <a href="https://carto.com/privacy/">CARTO</a> using OpenStreetMap data; requesting a map tile discloses your IP address to CARTO in the ordinary course of loading the map. When you look up a postcode while saving a place, that postcode is sent to <a href="https://postcodes.io/">postcodes.io</a> to turn it into coordinates; the request carries nothing identifying you, and Bobby stores only the outward half of the result. The map’s Police layer requests published Home Office crime statistics from <a href="https://data.police.uk/">data.police.uk</a>, which likewise discloses your IP address to that service; the request asks only for the boundary of the area you are viewing and a month, and carries nothing about you, your location or your account. Bobby does not sell data, and shares nothing for advertising.</p>
+<p>Bobby runs on <a href="https://supabase.com/privacy">Supabase</a> (database, storage and hosting) and uses <a href="https://expo.dev/privacy">Expo</a>'s push service to deliver notifications. Map tiles are served by <a href="https://openfreemap.org/">OpenFreeMap</a> using OpenStreetMap data; requesting a map tile discloses your IP address to them in the ordinary course of loading a map. Recorded-crime data is fetched from the Home Office's <a href="https://data.police.uk/">data.police.uk</a>, which discloses your IP address to that service and the outline of the area you are looking at &mdash; never your own position. Automated screening of report text is carried out by <a href="https://www.anthropic.com/legal/privacy">Anthropic</a>. Bobby does not sell data, and shares nothing for advertising.</p>
 <p>Bobby may disclose information where legally required, for example in response to a valid court order or a police request that meets the statutory conditions.</p>
 
 <h2>How long data is kept</h2>
 <ul>
-  <li><strong>Published reports</strong> &mdash; kept indefinitely as part of the public record of the map, unless you ask for erasure</li>
+  <li><strong>Published reports</strong> &mdash; kept indefinitely as part of the public record of the map, unless you delete them or ask for erasure</li>
   <li><strong>Rejected or removed reports</strong> &mdash; kept for 90 days for moderation audit, then deleted</li>
-  <li><strong>Waiting list emails</strong> &mdash; until Bobby launches in that area, or you ask us to remove you</li>
+  <li><strong>A stored position for nearby alerts</strong> &mdash; the latest one only, deleted when you switch the feature off, when you sign out, or automatically after 14 days</li>
+  <li><strong>Waiting list postcode districts</strong> &mdash; until Bobby launches in that area, or you ask us to remove yours</li>
   <li><strong>Push tokens</strong> &mdash; until you disable notifications, sign out, or delete your account</li>
-  <li><strong>Saved places</strong> &mdash; until you remove the place or delete your account</li>
-  <li><strong>Your account and the Apple refresh token</strong> &mdash; until you delete your account, which erases both immediately</li>
+  <li><strong>Your account and the Apple refresh token</strong> &mdash; until you delete your account, which erases both immediately and revokes Bobby's access to your Apple ID</li>
 </ul>
 
 <h2>Your rights</h2>
-<p>Under UK GDPR you may request access to your data, correction, erasure, restriction of processing, or portability, and you may object to processing based on legitimate interests. You can withdraw consent for location or notifications at any time in iOS Settings, and you can switch nearby alerts off inside Bobby under the You tab &mdash; which deletes the position Bobby holds rather than merely stopping it being updated.</p>
+<p>Under UK GDPR you may request access to your data, correction, erasure, restriction of processing, or portability, and you may object to processing based on legitimate interests. You can withdraw consent for location or notifications at any time in iOS Settings, and for nearby alerts inside the app.</p>
 
 <div class="card">
-  <p><strong>To exercise any of these, use the in-app route:</strong> open Bobby, go to <em>You &rarr; Delete my account</em>. It removes your account and everything in it immediately, revokes Bobby's access to your Apple ID, and requires no email to us.</p>
-  <p>You can also email <a href="mailto:jack@barhamfamily.com">jack@barhamfamily.com</a>. Requests are answered within one month, as the law requires. See <a href="delete-my-data.html">Delete my account</a> for detail.</p>
+  <p><strong>To exercise any of these, use the in-app route:</strong> open Bobby, go to <em>You &rarr; Delete my data</em>. It deletes your account and everything tied to it immediately, with no email required.</p>
+  <p>You can also email <a href="mailto:jack@barhamfamily.com">jack@barhamfamily.com</a>. Requests are answered within one month, as the law requires. See <a href="delete-my-data.html">Delete my data</a> for detail.</p>
 </div>
 
 <p>If you are unhappy with how your data has been handled, you can complain to the Information Commissioner's Office at <a href="https://ico.org.uk">ico.org.uk</a> or on 0303 123 1113.</p>
@@ -103,14 +82,14 @@
 <p>Bobby is not directed at children and is age-rated accordingly on the App Store. It is not knowingly used to collect data from anyone under 13. If you believe a child has submitted personal data, contact us and it will be deleted.</p>
 
 <h2>Security</h2>
-<p>Data is transmitted over HTTPS and stored in an access-controlled database with row-level security, so a device can only read published reports plus its own pending ones. No system is perfectly secure; please do not put sensitive information in a report.</p>
+<p>Data is transmitted over HTTPS and stored in an access-controlled database with row-level security, so a device can only read published reports plus its own pending ones, and authorship is never sent to any client. No system is perfectly secure; please do not put sensitive information in a report.</p>
 
 <h2>Changes</h2>
 <p>Material changes to this policy will be announced in the app before they take effect. The date at the top always reflects the current version.</p>
 
 <footer>
   Bobby is published by Jack Barham, a sole trader based in the United Kingdom.<br>
-  Contact: <a href="mailto:jack@barhamfamily.com">jack@barhamfamily.com</a> &middot; Last updated 15 August 2026
+  Contact: <a href="mailto:jack@barhamfamily.com">jack@barhamfamily.com</a> &middot; Last updated 30 August 2026
 </footer>
 </div>
 </body>
