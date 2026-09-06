@@ -1,4 +1,4 @@
-# Bobby — legal & support site
+# Sentry — legal & support site
 
 Five static pages. No build step, no dependencies.
 
@@ -44,11 +44,11 @@ an automatic rejection, and it is the easiest one to avoid.
 
 ## A note on these documents
 
-They are written specifically for Bobby as it actually behaves — Sign in with
+They are written specifically for Sentry as it actually behaves — Sign in with
 Apple, anonymous display, moderated user content, foreground location plus
-optional rounded background location for nearby alerts, automated screening with
+automated screening with
 a human behind it, and a UK sole trader as controller.
 
-They are still not legal advice. For a crime-reporting app carrying defamation
+They are still not legal advice. For a community reporting app carrying defamation
 and data-protection exposure, an hour with a solicitor before launch is money
 well spent — particularly on the liability and moderation sections of the terms.

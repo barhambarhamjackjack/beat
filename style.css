@@ -1,10 +1,10 @@
-:root{--bg:#130e0a;--surface:#1e1813;--fg:#f6f1e9;--muted:#aca397;--ember:#fe5a1d;--ember-soft:#fcb52c;--border:#332c27}
+:root{--bg:#0B0B0D;--surface:#16171A;--fg:#F1F1F4;--muted:#8B8D95;--ember:#E68C2C;--ember-soft:#FFB066;--border:#2A2B30}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 .wrap{max-width:720px;margin:0 auto;padding:48px 24px 96px}
 header{border-bottom:1px solid var(--border);padding-bottom:24px;margin-bottom:40px}
 .brand{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:var(--fg)}
-.mark{width:28px;height:28px;border-radius:9px;background:linear-gradient(135deg,var(--ember),#e94937)}
+.mark{width:26px;height:28px;background:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20106%22%20fill%3D%22none%22%3E%3Cpath%20fill%3D%22%23F1F1F4%22%20fill-rule%3D%22evenodd%22%20d%3D%22M28.14%2058.08%20A26%2026%200%201%201%2071.86%2058.08%20L50%2092%20Z%20M50%2052.6%20a8.6%208.6%200%201%200%200-17.2%208.6%208.6%200%200%200%200%2017.2%20Z%22%2F%3E%3Crect%20fill%3D%22%23F1F1F4%22%20x%3D%2212%22%20y%3D%2298%22%20width%3D%2276%22%20height%3D%228%22%20rx%3D%224%22%2F%3E%3C%2Fsvg%3E") center/contain no-repeat}
 .brand strong{font-size:18px;letter-spacing:-.01em}
 nav{margin-top:18px;display:flex;flex-wrap:wrap;gap:18px}
 nav a{color:var(--muted);text-decoration:none;font-size:14px}
@@ -12,7 +12,7 @@ nav a:hover,nav a.on{color:var(--ember)}
 h1{font-size:32px;line-height:1.15;letter-spacing:-.02em;margin:0 0 8px}
 h2{font-size:19px;margin:40px 0 10px;color:var(--ember-soft);letter-spacing:-.01em}
 h3{font-size:16px;margin:26px 0 6px}
-p,li{color:#d9d2c8}
+p,li{color:#D4D6DC}
 .lede{font-size:18px;color:var(--fg)}
 .meta{color:var(--muted);font-size:13px;margin:0 0 32px}
 a{color:var(--ember)}
@@ -20,7 +20,7 @@ ul{padding-left:20px}
 li{margin:6px 0}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 22px;margin:24px 0}
 .card p:last-child{margin-bottom:0}
-.warn{border-color:rgba(254,90,29,.4);background:#2b1a12}
+.warn{border-color:rgba(230,140,44,.4);background:#1E1712}
 table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px}
 th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
 th{color:var(--ember-soft);font-weight:600}
