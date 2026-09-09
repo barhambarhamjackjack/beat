@@ -1,0 +1,1112 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sentry — moderation</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://mdylhrenrchthjfehxnb.supabase.co; img-src https://mdylhrenrchthjfehxnb.supabase.co; media-src https://mdylhrenrchthjfehxnb.supabase.co; base-uri 'none'; form-action 'none'">
+<!--
+  Sentry moderation console — hosted at https://barhambarhamjackjack.github.io/beat/moderation.html
+
+  REDESIGNED 17 Aug 2026, around how moderation actually works now: the AI
+  screener reads every report and publishes or rejects on its own; a person
+  only sees what it refers, what users flag, and what failed. So the console
+  is built for a five-minute daily check, in three views:
+
+    NEEDS YOU  — everything waiting on a human decision, in one scroll:
+                 referred/flagged reports, flagged comments, names & pictures.
+                 Open it, see zero, close the tab. That is the ideal visit.
+    AI CALLS   — the trust-but-verify view. Every reject the AI has made,
+                 newest first, each with a one-tap Restore — because a wrong
+                 reject silently disappears someone's report, which is the
+                 mistake this app can least afford. Also what it published
+                 lately, and anything you have overturned.
+    EVERYTHING — the full archive with status and AI filters, any report
+                 movable in any direction (including back out of removed).
+
+  How access works: this page signs in to Supabase as moderator@beat.test with
+  a password, using the same publishable key the app ships with. That account
+  can call exactly the mod_* functions and nothing else — the service key is
+  not involved anywhere. If the password leaks, the blast radius is the
+  moderation queue, and you rotate it in Supabase → Authentication → Users.
+
+  Carried forward from the 17 Aug bugfix pass (do not regress these):
+  1. Bar button looks the title up by id — never interpolate it into onclick.
+  2. Publish/Hide/Remove re-read mod_queue afterwards and believe the queue;
+     a card the database declined to move stays put and says why ("stuck").
+  3. decideIdentity is wrapped in guard() like everything else.
+  4. Only a real 401 signs you out; any other load error offers a retry.
+  5. Storage paths go through encodeURI, and are never HTML-escaped first.
+  6. Clips live in incident_videos (incident_id, storage_path, duration_ms),
+     not on incidents — fetched alongside the queue and attached to the rows.
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --bg: #0d0d0f; --surface: #17171a; --surface2: #202024; --border: #2b2b31;
+    --fg: #f4f4f5; --muted: #8e8e96; --ember: #fe5a1d; --ember-soft: #fcb52c;
+    --verified: #3cc998; --destructive: #e94740; --archive: #7d93b8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: "Archivo", system-ui, sans-serif; font-size: 15px; line-height: 1.5;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 20px 20px 80px; }
+
+  header { display: flex; align-items: center; gap: 10px; padding: 8px 0 14px; }
+  header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; margin: 0; }
+  header .env { margin-left: auto; font-size: 11px; color: var(--muted); }
+  .kicker { font-size: 10px; font-weight: 600; letter-spacing: 2px; color: var(--ember-soft); text-transform: uppercase; }
+
+  /* One quiet line when the screener is fine; a loud box only when it is not. */
+  .pulse { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); margin: 0 0 14px; }
+  .pulse .dot { width: 8px; height: 8px; border-radius: 4px; background: var(--verified); flex: none; }
+  .alarm { border: 1px solid rgba(233,71,64,0.5); background: rgba(233,71,64,0.1); border-radius: 10px;
+    padding: 12px 14px; margin: 0 0 14px; font-size: 13px; color: #fafafa; line-height: 1.5; }
+  .alarm b { display: block; margin-bottom: 2px; color: var(--destructive); }
+  .alarm-sub { margin-top: 6px; font-size: 12px; color: #c9c9d1; }
+  .alarm code { background: #141418; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+
+  .tabs { display: flex; padding: 3px; border: 1px solid var(--border); background: var(--surface); border-radius: 999px; width: max-content; max-width: 100%; margin-bottom: 14px; overflow-x: auto; }
+  .tabs button { min-height: 38px; padding: 0 16px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: 600 12px/1 "Archivo", system-ui, sans-serif; letter-spacing: 0.4px; cursor: pointer; white-space: nowrap; }
+  .tabs button.on { background: var(--surface2); color: var(--fg); }
+  .tabs button .n { color: var(--ember); margin-left: 5px; }
+
+  .hint { font-size: 12px; color: var(--muted); margin: 6px 0 16px; }
+
+  .section { margin: 22px 0 8px; display: flex; align-items: baseline; gap: 10px; }
+  .section h3 { font-size: 13px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--fg); margin: 0; }
+  .section .n { font-size: 12px; color: var(--ember); font-weight: 700; }
+  .section .sub { font-size: 12px; color: var(--muted); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px 18px; margin-bottom: 10px; }
+  .card .video { margin-top: 12px; }
+  .card .video video { width: 100%; max-height: 320px; border-radius: 10px; background: #000; display: block; }
+  .card .videoMeta { margin-top: 6px; font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted); }
+  .card .meta { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; font-size: 10px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); }
+  .card .meta .cat { color: var(--ember-soft); }
+  .card .meta .flag { color: var(--destructive); }
+  .card h2 { font-size: 17px; font-weight: 700; margin: 8px 0 2px; }
+  .card .desc { font-size: 14px; margin: 10px 0 0; color: var(--fg); }
+  .card .warn { margin-top: 10px; font-size: 12px; color: var(--destructive); }
+  .card .prior { margin-top: 6px; font-size: 12px; color: var(--ember-soft); }
+
+  .photos { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .photos img { width: 108px; height: 108px; object-fit: cover; border-radius: 12px; border: 1px solid var(--border); cursor: pointer; }
+
+  .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .actions button {
+    min-height: 44px; padding: 0 20px; border-radius: 999px; cursor: pointer;
+    font: 600 13px/1 "Archivo", system-ui, sans-serif; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--fg);
+  }
+  .actions .publish { background: var(--ember); border-color: var(--ember); color: #0d0d0f; }
+  .actions .keep { background: var(--verified); border-color: var(--verified); color: #0d0d0f; }
+  .actions .restore { background: var(--verified); border-color: var(--verified); color: #0d0d0f; }
+  .actions .remove { border-color: var(--destructive); color: var(--destructive); background: transparent; }
+  .actions .bar { border-color: var(--destructive); color: var(--destructive); background: transparent; margin-left: auto; }
+  .actions button:disabled { opacity: 0.4; cursor: default; }
+
+  .empty { text-align: center; color: var(--muted); padding: 56px 0; }
+  .empty .big { font-size: 34px; }
+  .empty b { color: var(--fg); display: block; font-size: 16px; margin-bottom: 4px; }
+
+  .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); background: var(--surface2); border: 1px solid var(--border); color: var(--fg); padding: 10px 18px; border-radius: 999px; font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none; max-width: 90vw; text-align: center; z-index: 10; }
+  .toast.show { opacity: 1; }
+  .toast.err { border-color: var(--destructive); color: var(--destructive); }
+
+  .setup { max-width: 460px; margin: 12vh auto 0; }
+  .setup h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  .setup p { font-size: 13px; color: var(--muted); }
+  .setup .danger { color: var(--destructive); }
+  .setup input { width: 100%; margin-top: 8px; padding: 13px 15px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); color: var(--fg); font: 500 14px "Archivo", system-ui, sans-serif; }
+  .setup button { margin-top: 14px; width: 100%; min-height: 48px; border-radius: 999px; border: 0; background: var(--ember); color: #0d0d0f; font: 600 15px "Archivo", system-ui, sans-serif; cursor: pointer; }
+
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border); display: flex; gap: 18px; font-size: 12px; color: var(--muted); }
+  footer a { color: var(--muted); cursor: pointer; text-decoration: underline; }
+
+  .stat { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .identity { display: flex; gap: 14px; align-items: center; }
+  .face { width: 56px; height: 56px; border-radius: 28px; object-fit: cover; background: #1a1a1e; flex: none; }
+  .face.none { display: flex; align-items: center; justify-content: center; color: #6b6b73; border: 1px solid #2a2a30; }
+  .warn { color: #e94740; }
+
+  .ai { border-radius: 8px; padding: 8px 10px; margin: 10px 0; font-size: 12px; border: 1px solid #2a2a30; }
+  .ai.ok { background: rgba(60,201,152,0.08); border-color: rgba(60,201,152,0.4); }
+  .ai.bad { background: rgba(233,71,64,0.08); border-color: rgba(233,71,64,0.4); }
+  .ai.hmm { background: rgba(252,181,44,0.08); border-color: rgba(252,181,44,0.4); }
+  .ai.err, .ai.none { background: #141418; color: #8a8a92; }
+  .ai-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .ai-head span { color: #8a8a92; }
+  .ai-head .rule { margin-left: auto; font-style: italic; }
+  .ai-why { margin-top: 4px; color: #c9c9d1; line-height: 1.45; }
+  .retry { margin-top: 8px; background: #1c1c22; color: #c9c9d1; border: 1px solid #2a2a30;
+    border-radius: 7px; padding: 6px 10px; cursor: pointer; font: inherit; font-size: 12px; }
+  .retry:hover { background: #24242c; color: #fff; }
+
+  .score { display: flex; gap: 8px; margin: 0 0 14px; flex-wrap: wrap; }
+  .score div { flex: 1; min-width: 88px; background: #141418; border-radius: 8px; padding: 10px; text-align: center; }
+  .score div.warn { background: rgba(252,181,44,0.1); }
+  .score b { display: block; font-size: 18px; color: #fafafa; }
+  .score span { font-size: 11px; color: #8a8a92; }
+
+  /* Compact row for the auto-published spot-check list — these are usually
+     fine, so they get one line each, not a full card. */
+  .row { display: flex; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; margin-bottom: 6px; }
+  .row .rmeta { flex: 1; min-width: 0; }
+  .row .rtitle { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .rsub { font-size: 11px; color: var(--muted); }
+  .row button { min-height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--destructive); background: transparent; color: var(--destructive); font: 600 12px/1 "Archivo", system-ui, sans-serif; cursor: pointer; flex: none; }
+
+  /* A card the database refused to move. Louder than a toast, because the
+     toast is gone in three seconds and this needs to survive a refresh. */
+  .stuck { border-color: rgba(233,71,64,0.6); }
+  .stuck-note { margin-top: 10px; font-size: 12px; color: #e94740; line-height: 1.45; }
+
+  .pulse {display:block}.pulse b {display:block;margin-bottom:5px}
+  .tabs button,.actions button {min-height:44px;font-family:inherit}
+  .filters button {align-self:end;min-height:44px;padding:12px 20px;border:0;border-radius:12px;background:var(--ember);color:#111}
+  @media(max-width:550px){.wrap .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}header{flex-wrap:wrap}header .env{width:100%;margin:0}footer{flex-wrap:wrap}}
+  button,input,select,textarea {font:inherit} button {cursor:pointer;min-height:44px}
+  .filters {display:flex;flex-wrap:wrap;gap:12px;margin:18px 0}
+  .filters label {display:grid;gap:6px;font-size:12px;color:var(--muted);flex:1;min-width:130px}
+  input,select,textarea {background:var(--surface2);color:var(--fg);border:1px solid var(--border);border-radius:10px;padding:12px;max-width:100%;box-sizing:border-box}
+  .metrics {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:18px 0}
+  .metric {padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
+  .metric b {display:block;font-size:24px;margin-bottom:6px}.metric span {font-size:12px;color:var(--muted)}
+  .stage {padding:8px 12px;border-radius:8px;background:var(--surface2);margin-bottom:12px}
+  .quiet {color:var(--muted);font-size:13px;line-height:1.6} mark {background:#e5b758;color:#16130c;border-radius:3px}
+  dialog {background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:20px;width:min(560px,90vw);max-height:85vh;padding:24px}
+  dialog::backdrop {background:#0009} dialog label {display:grid;gap:8px;margin:16px 0} dialog textarea {min-height:90px}
+  .history-row {border-bottom:1px solid var(--border);padding:16px 0}.history-row p {white-space:pre-wrap}
+  .tools {display:flex;gap:10px;flex-wrap:wrap}.tools button {border-radius:10px;padding:10px 16px}
+  .setup input {margin-top:12px;width:100%}.reference {font-family:monospace;font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<dialog id="decisionDialog" aria-labelledby="dialogTitle"></dialog>
+
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ config */
+const SUPABASE_URL = "https://mdylhrenrchthjfehxnb.supabase.co";
+// The publishable key: already embedded in every copy of the app, safe here.
+const APIKEY = "sb_publishable_f14n6eARyW8VDjpzN535ww_bjHrC6Do";
+const SESSION_STORAGE = "beat.moderation.session";
+const CATEGORY_LABELS = {
+  damage: "Damage", suspicious: "Something suspicious", theft: "Something taken", assault: "Assault", antisocial: "Anti-social",
+  vehicle: "Vehicle", burglary: "Burglary", decay: "Fly-tipping",
+};
+
+/* Some browsers refuse localStorage on file:// origins. If that is the case
+   here, the console still works — you just sign in once per tab. */
+const store = {
+  read() { try { return JSON.parse(sessionStorage.getItem(SESSION_STORAGE) || "null"); } catch { return null; } },
+  write(v) { try { sessionStorage.setItem(SESSION_STORAGE, JSON.stringify(v)); } catch {} },
+  clear() { try { sessionStorage.removeItem(SESSION_STORAGE); } catch {} },
+};
+
+let session = store.read();
+let view = "queue";   // queue | ai | all
+let queue = [];
+let comments = [];
+let identities = [];  // handles and pictures awaiting review
+let all = [];         // the archive; loaded the first time a view needs it
+let allLoaded = false;
+let allFilter = "";   // status filter for Everything
+let aiFilter = "";    // AI filter for Everything
+let score = null;     // how the screener is doing
+let health = null;    // whether it is running at all
+/* ids the database declined to move, and what we asked it to do. Cleared on a
+   successful decision or a manual refresh. */
+let stuck = new Map();
+
+/* ------------------------------------------------------------------ auth + http
+   Plain REST rather than the supabase-js client — no CDN dependency.
+   Access tokens last an hour; a 401 triggers one silent refresh and a
+   retry, and only if the refresh also fails do you see the login screen. */
+async function timedFetch(url, options) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
+  try {
+    const response = await fetch(url, {...options, signal:controller.signal});
+    const text = await response.text();
+    return {ok:response.ok,status:response.status,statusText:response.statusText,
+      text:async()=>text,json:async()=>JSON.parse(text)};
+  } finally {clearTimeout(timer);}
+}
+async function signIn(password, email) {
+  const res = await timedFetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: { apikey: APIKEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  const body = await res.json();
+  if (!res.ok || !body.access_token) {
+    throw new Error(body.error_description || body.msg || "Wrong password");
+  }
+  session = { access: body.access_token, refresh: body.refresh_token };
+  store.write(session);
+}
+
+let refreshingSession;
+function refreshSession() {
+  if (!refreshingSession) refreshingSession = exchangeSession().finally(() => { refreshingSession = null; });
+  return refreshingSession;
+}
+async function exchangeSession() {
+  if (!session?.refresh) return false;
+  const res = await timedFetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+    method: "POST",
+    headers: { apikey: APIKEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: session.refresh }),
+  });
+  const body = await res.json();
+  if (!res.ok || !body.access_token) return false;
+  session = { access: body.access_token, refresh: body.refresh_token };
+  store.write(session);
+  return true;
+}
+
+/* An error that means "your session is gone", as opposed to any of the two
+   dozen other things that can go wrong. Only this one logs you out. */
+class AuthError extends Error {}
+
+async function rest(path, opts = {}, retried = false) {
+  const res = await timedFetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers: {
+      apikey: APIKEY,
+      Authorization: `Bearer ${session?.access || ""}`,
+      "Content-Type": "application/json",
+      ...(opts.headers || {}),
+    },
+  });
+  if (res.status === 401 && !retried && (await refreshSession())) {
+    return rest(path, opts, true);
+  }
+  if (!res.ok) {
+    let detail = res.statusText;
+    try { detail = (await res.json()).message || detail; } catch {}
+    if (res.status === 401) {
+      signOutLocal();
+      renderSetup("Session expired — sign in again.");
+      throw new AuthError(detail);
+    }
+    throw new Error(detail);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+function signOutLocal() {
+  session = null;
+  store.clear();
+  queue=[];all=[];comments=[];identities=[];dashboard=null;allLoaded=false;
+  const dialog=document.getElementById("decisionDialog");dialog.close();dialog.innerHTML="";
+}
+
+const rpc = (fn, args) => rest(`rpc/${fn}`, { method: "POST", body: JSON.stringify(args ?? {}) });
+const photoUrl = (p) => `${SUPABASE_URL}/storage/v1/object/public/incident-photos/${encodeURI(String(p))}`;
+const faceUrl  = (k) => `${SUPABASE_URL}/storage/v1/object/public/avatars/${encodeURI(String(k))}.jpg`;
+
+/* ------------------------------------------------------------------ toast */
+let toastTimer;
+function toast(msg, err = false) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = `toast show${err ? " err" : ""}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (el.className = "toast"), err ? 6000 : 2600);
+}
+
+/* ------------------------------------------------------------------ data */
+let dashboard = null, lastChecked = null, refreshing = false;
+let searchText='', areaFilter='', sinceDate='', untilDate='', moreReports=false;
+async function load() {
+  const [d,c,i] = await Promise.all([rpc("mod_dashboard"),rpc("mod_comment_queue"),rpc("mod_identity_queue")]);
+  if (!session) throw new AuthError("Signed out");
+  dashboard=d; queue=d.queue||[]; comments=c||[]; identities=i||[];
+  await attachVideos(queue);
+  lastChecked=new Date();
+}
+
+/**
+ * Hang each report's clip off the row.
+ *
+ * The mod_* functions return `has_video` and nothing else, because the file
+ * itself lives in `incident_videos` (incident_id, storage_path, duration_ms),
+ * not on `incidents`. One extra select fixes it without touching the database.
+ *
+ * A report whose has_video is true but has no row here is a genuine problem
+ * (the file never finished landing) and says so on the card, rather than
+ * looking identical to a report with no clip at all.
+ */
+async function attachVideos(rows) {
+  const want = (rows || []).filter((r) => r.has_video && !r.video_path && !r.video_missing);
+  if (!want.length) return;
+  const ids = want.map((r) => r.id).join(",");
+  let found = [];
+  try {
+    found = (await rest(
+      `incident_videos?incident_id=in.(${ids})&select=incident_id,storage_path,duration_ms`,
+    )) || [];
+  } catch (e) {
+    if (e instanceof AuthError) throw e;
+    // A failure here must not take the whole queue down with it.
+    console.warn("could not load clips:", e.message);
+    return;
+  }
+  const byId = new Map(found.map((v) => [v.incident_id, v]));
+  for (const r of want) {
+    const v = byId.get(r.id);
+    if (v) { r.video_path = v.storage_path; r.video_duration_ms = v.duration_ms; }
+    else { r.video_missing = true; }
+  }
+}
+
+async function loadScore() {
+  try { score = await rpc("mod_ai_scorecard"); } catch (e) { score = null; }
+  try { health = await rpc("mod_screener_health"); } catch (e) { health = null; }
+}
+
+/* The full history is a separate, larger fetch. Deliberately not part of
+   load(): the queue is what you open this page for, and making the daily
+   check wait on five hundred rows of archive would be the wrong trade. The
+   AI view and the Everything view both need it, so it loads once for either. */
+async function ensureAll(append=false) {
+  if (allLoaded && !append) return;
+  const last=append ? all[all.length-1] : null;
+  const rows=await rpc("mod_search_reports",{search_text:searchText,area_filter:areaFilter,status_filter:allFilter,
+    since_date:sinceDate||null,until_date:untilDate||null,cursor_at:last?.created_at||null,cursor_id:last?.id||null});
+  moreReports=rows.length===50;
+  all=append ? [...all,...rows] : rows;
+  allLoaded=true;
+  await attachVideos(all);
+}
+
+/* ------------------------------------------------------------------ actions */
+/**
+ * Publish / hide / remove, from the queue.
+ *
+ * A resolved RPC is not the same as a changed row: if mod_decide_incident
+ * declines the transition — most often a report that is already published and
+ * only queued because someone flagged it — the call returns 200 anyway. So:
+ * ask, then re-read the queue and believe the queue. If the card is still
+ * there, it stays put and says why. (This was the whole "stuck report" bug.)
+ */
+async function decideIncident(id, decision) {
+  await rpc("mod_decide_incident", { target: id, decision });
+
+  const fresh = (await rpc("mod_queue")) || [];
+  const stillThere = fresh.some((i) => i.id === id);
+  queue = fresh;
+  await attachVideos(queue);
+
+  if (stillThere) {
+    stuck.set(id, decision);
+    toast(`The database did not accept "${decision}" for that report — it is still in the queue.`, true);
+  } else {
+    stuck.delete(id);
+    toast(`Report ${PAST_TENSE[decision] || decision}`);
+  }
+  render();
+}
+
+const PAST_TENSE = { publish: "published", hide: "hidden", remove: "removed", keep: "kept" };
+
+/* Any report, any direction, including back out of removed — which
+   mod_decide_incident could not do, so a mistake used to be permanent. */
+async function setStatus(id, decision) {
+  const res = await rpc("mod_set_status", { target: id, decision });
+  const row = all.find((r) => r.id === id);
+  if (row) { row.status = res.now; row.flagged = false; row.report_count = 0; }
+  // A report that has just been actioned no longer belongs in the queue.
+  queue = queue.filter((i) => i.id !== id);
+  stuck.delete(id);
+  if (res.was === res.now) {
+    toast(`Nothing changed — it was already ${res.now}`, true);
+  } else {
+    toast(`${res.was} → ${res.now}`);
+  }
+  render();
+}
+
+/* Puts a failed report back in the screener's queue. The database decides
+   whether that is allowed — see retry_ai_review in migration 0020 — so a stale
+   page cannot re-open something a moderator has already settled. */
+async function retryAi(id) {
+  const outcome = await rpc("mod_retry_ai_review", { target: id });
+  const said = {
+    requeued: "Back in the AI queue — screened within a minute",
+    "already-decided": "Already decided by a moderator; left alone",
+    "already-queued": "Already waiting to be screened",
+    "not-a-failure": "That was a real verdict, not a failure",
+    gone: "That report no longer exists",
+  }[outcome] || outcome;
+  if (outcome === "requeued") {
+    const row = queue.find((i) => i.id === id) || all.find((i) => i.id === id);
+    if (row) {
+      row.ai_verdict = null; row.ai_confidence = null; row.ai_reason = null;
+      row.ai_rule = null;
+      if (row.flag_reason === "automatic review failed") {
+        row.flagged = false; row.flag_reason = null;
+      }
+    }
+  }
+  toast(said, outcome !== "requeued");
+  render();
+}
+
+async function decideComment(id, decision) {
+  await rpc("mod_decide_comment", { target: id, decision });
+  comments = comments.filter((c) => c.id !== id);
+  toast(`Comment ${PAST_TENSE[decision] || decision}`);
+  render();
+}
+
+/* A name and a face are two separate decisions about one account: a fine
+   picture with an abusive handle should lose the handle and keep the picture. */
+async function decideIdentity(id, which, decision) {
+  await rpc("mod_decide_identity", { target: id, which, decision });
+  const row = identities.find((r) => r.id === id);
+  if (row) {
+    if (which === "handle") row.handle_status = decision;
+    else {
+      row.avatar_status = decision;
+      if (decision === "rejected") row.avatar_key = null;
+    }
+    // Off the list only once neither half is still waiting.
+    if (row.handle_status !== "pending" && row.avatar_status !== "pending") {
+      identities = identities.filter((r) => r.id !== id);
+    }
+  }
+  toast(`${which === "handle" ? "Name" : "Picture"} ${decision}`);
+  render();
+}
+
+/**
+ * Bar the author of a report.
+ *
+ * The title is looked up rather than passed through the markup — interpolating
+ * it into a double-quoted onclick attribute is what silently killed every Bar
+ * button for months. Do not regress this.
+ */
+async function barAuthor(incidentId) {
+  const row = queue.find((i) => i.id === incidentId) || all.find((i) => i.id === incidentId);
+  const title = row ? row.title : "this report";
+  const reason = prompt(
+    `Bar the author of "${title}"?\n\nThis permanently bars the account and removes ALL their reports. Type a reason to confirm:`,
+  );
+  if (!reason || !reason.trim()) return;
+  const removed = await rpc("mod_bar", { target_incident: incidentId, reason: reason.trim() });
+  toast(`Account barred — ${removed} report(s) removed`);
+  await load();
+  if (allLoaded) { allLoaded = false; await ensureAll(); }
+  render();
+}
+
+function guard(fn) {
+  return (...args) => fn(...args).catch((e) => {
+    if (e instanceof AuthError) return;   // the login screen is already up
+    toast(e.message, true);
+  });
+}
+
+/* ------------------------------------------------------------------ render */
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function hoursOld(iso) {
+  const h = Math.round((Date.now() - new Date(iso)) / 3600000);
+  return h < 1 ? "just now" : h < 24 ? `${h}h old` : `${Math.round(h / 24)}d old`;
+}
+
+function renderSetup(msg = "") {
+  document.getElementById("app").innerHTML = `
+    <div class="setup">
+      <div class="kicker">SENTRY MODERATION</div>
+      <h2>Sign in</h2>
+      <p>Sign in with your moderator account. Access is checked by the server.
+      Your session stays in this browser tab.</p>
+      ${msg ? `<p class="danger">${esc(msg)}</p>` : ""}
+      <label for="emailInput">Moderator email</label>
+      <input id="emailInput" type="email" value="moderator@beat.test" autocomplete="username">
+      <label for="pwInput">Password</label>
+      <input id="pwInput" type="password" placeholder="password" autocomplete="current-password">
+      <button id="loginBtn">Start moderating</button>
+    </div>`;
+  const go = async () => {
+    const pw = document.getElementById("pwInput").value;
+    if (!pw) return;
+    try {
+      await signIn(pw, document.getElementById("emailInput").value.trim());
+      await refresh();
+    } catch (e) {
+      renderSetup(e.message);
+    }
+  };
+  document.getElementById("loginBtn").onclick = go;
+  document.getElementById("pwInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") go();
+  });
+}
+
+/* A load that failed for a reason that is not your session. Signing you out
+   here was wrong: it looked identical to a wrong password and sent you round
+   the login screen a second time for what was usually a dropped connection. */
+function renderLoadError(msg) {
+  document.getElementById("app").innerHTML = `
+    <div class="setup">
+      <div class="kicker">SENTRY MODERATION</div>
+      <h2>Could not load the queue</h2>
+      <p class="danger">${esc(msg)}</p>
+      <p>You are still signed in. This is usually the connection or Supabase
+      being briefly unavailable, not your password.</p>
+      <button id="retryBtn">Try again</button>
+    </div>`;
+  document.getElementById("retryBtn").onclick = () => {
+    refresh().catch((e) => {
+      if (!(e instanceof AuthError)) renderLoadError(e.message);
+    });
+  };
+}
+
+/* Silence is the failure mode, so it needs a voice. Reports waiting with
+   nothing screened in the last hour means the screener is not running —
+   deployed wrong, key missing, or quota. Whatever the cause, the queue looks
+   exactly like a quiet afternoon, which is how 27 consecutive 404s went
+   unnoticed. When it IS running, one quiet line says so, so that "no alarm"
+   and "nothing checked" never look the same. */
+function duration(seconds) {return seconds==null ? '—' : seconds<60 ? `${Math.round(seconds)}s` : `${Math.round(seconds/60)}m`;}
+function healthLine() {
+  const run=dashboard?.last_run;
+  const age=run ? (Date.now()-new Date(run.started_at))/1000 : null;
+  const bad=run && (age>180 || (run.http_status!=null && run.http_status!==200) || run.failures>0 || (!run.finished_at && age>90));
+  const label=!run ? 'Service health not yet confirmed' : bad ? 'Automatic review needs attention' : !run.finished_at ? 'Automatic review is running' : 'Automatic review is responding';
+  const detail=!run ? 'Waiting for the first recorded moderation tick.' : `Last check ${new Date(run.started_at).toLocaleTimeString()}${run.http_status ? ` · HTTP ${run.http_status}` : ''}${run.failures ? ` · ${run.failures} failed review(s)` : ''}`;
+  const m=dashboard?.metrics||{};
+  return `<div class="${bad?'alarm':'pulse'}"><b>${label}</b><br><span class="quiet">${detail}. Only the moderation service is measured here.</span></div>
+    <div class="metrics"><div class="metric"><b>${dashboard?.waiting??'—'}</b><span>Reports awaiting review</span></div>
+    <div class="metric"><b>${duration(m.median_seconds)}</b><span>Typical filing → AI decision · 7 days</span></div>
+    <div class="metric"><b>${duration(m.p95_seconds)}</b><span>95% decided within · 7 days</span></div>
+    <div class="metric"><b>${duration(m.after_upload_seconds)}</b><span>Typical after uploads finish</span></div>
+    <div class="metric"><b>${dashboard?.oldest_waiting?duration((Date.now()-new Date(dashboard.oldest_waiting))/1000):'—'}</b><span>Oldest waiting report</span></div>
+    <div class="metric"><b>${m.restored_rejections??0}</b><span>AI rejections restored · 7 days</span></div></div>
+    <p class="quiet">${m.sample??0} AI decisions in the timing sample. Decision time includes referrals, not just publication. Restoration tracking starts with this dashboard.</p>`;
+}
+
+/**
+ * The attached video, if there is one.
+ *
+ * preload="metadata" rather than "auto": a queue of ten reports would
+ * otherwise pull ten 15MB files the moment the page opens, most of which
+ * nobody watches. Controls, no autoplay.
+ */
+function videoBlock(item) {
+  if (item.video_missing) {
+    return `<div class="warn">⚑ This report says it has a clip, but no file was
+      found for it in incident_videos — the upload did not finish. Retry loading the clip
+      before deciding on this report.</div>`;
+  }
+  if (!item.video_path) return "";
+  const url = `${SUPABASE_URL}/storage/v1/object/public/incident-videos/${encodeURI(String(item.video_path))}`;
+  const secs = item.video_duration_ms ? Math.round(item.video_duration_ms / 1000) : null;
+  return `
+    <div class="video">
+      <video src="${esc(url)}" controls preload="metadata" playsinline></video>
+      <div class="videoMeta">VIDEO${secs ? ` · ${secs}s` : ""} — watch before publishing</div>
+    </div>`;
+}
+
+/* What the model thought, on every card it touched. Shown even when the
+   verdict was "publish" and the report is queued anyway — that combination
+   means the confidence fell short of the threshold, which is exactly the case
+   a moderator should see the number for. */
+function evidenceText(text,item) {
+  const quotes=[...String(item.ai_reason||'').matchAll(/["“]([^"”]{3,160})["”]/g)].map(m=>m[1]);
+  const value=String(text||'');
+  const found=quotes.map(q=>({q,at:value.indexOf(q)})).filter(x=>x.at>=0).sort((a,b)=>a.at-b.at);
+  let end=0,html='';
+  for(const {q,at} of found){if(at<end)continue;html+=esc(value.slice(end,at))+`<mark>${esc(q)}</mark>`;end=at+q.length;}
+  return html+esc(value.slice(end));
+}
+function stageBlock(item) {
+  const labels={uploading:'Upload window — waiting for completion',automatic:'Waiting for automatic review',human:'Needs your decision'};
+  return `<div class="stage">${labels[item.review_stage]||esc(item.status)}${item.review_stage==='uploading'?'<div class="quiet">Older app versions use a three-minute upload safety window.</div>':''}</div>`;
+}
+function aiBlock(r) {
+  if (!r.ai_verdict) return `<div class="ai none">Not screened yet</div>`;
+  const pct = r.ai_confidence != null ? Math.round(r.ai_confidence * 100) + "%" : "—";
+  const tone = r.ai_verdict === "publish" ? "ok"
+             : r.ai_verdict === "reject" ? "bad"
+             : r.ai_verdict === "error" ? "err" : "hmm";
+  const label = { publish: "would publish", reject: "would reject",
+                  refer: "wants a human", error: "screening failed" }[r.ai_verdict];
+  return `
+    <div class="ai ${tone}">
+      <div class="ai-head">
+        <b>AI: ${label}</b>
+        <span>${pct} confident</span>
+        ${r.ai_rule ? `<span class="rule">${esc(r.ai_rule)}</span>` : ""}
+      </div>
+      ${r.ai_reason ? `<div class="ai-why">${esc(r.ai_reason)}</div>` : ""}
+      ${retryButton(r)}
+    </div>`;
+}
+
+/**
+ * The way back from a screening failure. Only appears on a genuine failure
+ * that is still pending — a refer is a real verdict the model formed after
+ * reading the report, and re-rolling it until it says something you prefer
+ * is not moderation.
+ */
+function retryButton(r) {
+  if (r.ai_verdict !== "error" || r.status !== "pending") return "";
+  return `<button class="retry" onclick="onRetryAi('${r.id}')">↻ Send back to AI</button>`;
+}
+
+/* Why a card is still sitting here after you actioned it. */
+function stuckNote(item) {
+  const asked = stuck.get(item.id);
+  if (!asked) return "";
+  return `
+    <div class="stuck-note">
+      ⚠ You asked to <b>${esc(asked)}</b> this and the database left it where it was.
+      It is <b>${esc(item.status)}</b>${item.report_count > 0 ? ` with ${item.report_count} open flag(s)` : ""}.
+      A report that is already published only sits in this queue because it was
+      flagged — use <b>Everything → ${esc(item.status)}</b> and move it from there,
+      which goes through mod_set_status and can change any state in any direction.
+    </div>`;
+}
+
+/**
+ * The photographs attached to a report.
+ *
+ * A function, and used by all three cards, because it was inlined in
+ * incidentCard alone and the other two simply never showed a photo.
+ *
+ * `item.photos` was ALSO undefined on every row for four migrations: 0006 gave
+ * moderation_queue a `photos` column, 0012 dropped and recreated the view
+ * without it, and 0013 / 0014 / 0018 inherited the omission. This code was
+ * therefore mapping over `[]` and rendering nothing, silently, since 0012 — so
+ * every photo-bearing report has been published or removed by a moderator who
+ * could not see the photograph. Restored by migration 0028.
+ */
+function photoBlock(item) {
+  const photos = (item.photos || [])
+    .map((p) => `<a href="${esc(photoUrl(p))}" target="_blank" rel="noopener"><img src="${esc(photoUrl(p))}" alt="report photo"></a>`)
+    .join("");
+  if (photos) return `<div class="photos">${photos}</div>`;
+  // A count with no rows behind it means the upload did not finish — the same
+  // failure the video warning covers, and worth saying rather than hiding.
+  if (item.photo_count > 0) {
+    return `<div class="warn">⚑ ${item.photo_count} photo(s) recorded but not uploaded — the report was published before the upload finished.</div>`;
+  }
+  return "";
+}
+
+function incidentCard(item) {
+  const flags = (item.flags || [])
+    .map((f) => `<div class="warn">⚑ ${esc(f.reason)}${f.detail ? `: ${esc(f.detail)}` : ""}</div>`)
+    .join("");
+  return `
+    <div data-report="${item.id}" class="card${stuck.has(item.id) ? " stuck" : ""}">
+      <div class="meta">
+        <span class="cat">${esc(CATEGORY_LABELS[item.category] || item.category)}</span>
+        <span>${esc(item.area)}</span>
+        <span>${hoursOld(item.created_at)}</span>
+        <span>${esc(item.status)}</span>
+        ${item.report_count > 0 ? `<span class="flag">⚑ ${item.report_count} user flag(s)</span>` : ""}
+      </div>
+      <div class="reference">SENTRY-${item.id.slice(0,6).toUpperCase()}</div>
+      <h2>${evidenceText(item.title,item)}</h2>
+      ${item.description ? `<p class="desc">${evidenceText(item.description,item)}</p>` : ""}
+      ${item.flagged && item.flag_reason ? `<div class="warn">⚑ auto-screen: ${esc(item.flag_reason)}</div>` : ""}
+      ${flags}
+      ${item.prior_removals > 0 ? `<div class="prior">! this account has ${item.prior_removals} previously removed report(s)</div>` : ""}
+      ${photoBlock(item)}
+      ${videoBlock(item)}
+      ${aiBlock(item)}
+      ${stageBlock(item)}
+      ${stuckNote(item)}
+      <div class="actions">
+        <button class="publish" onclick="onIncident('${item.id}','publish')">Publish</button>
+        <button onclick="onIncident('${item.id}','hide')">Hide</button>
+        <button class="remove" onclick="onIncident('${item.id}','remove')">Remove</button>
+        <button onclick="showHistory('${item.id}')">Decision history</button>
+        ${item.reporter_id ? `<button class="bar" onclick="onBar('${item.id}')">Bar account…</button>` : ""}
+      </div>
+    </div>`;
+}
+
+function commentCard(c) {
+  return `
+    <div class="card">
+      <div class="meta">
+        <span class="cat">COMMENT</span>
+        <span>on “${esc(c.incident_title)}”</span>
+        <span>${hoursOld(c.created_at)}</span>
+        <span>${esc(c.status)}</span>
+        ${c.report_count > 0 ? `<span class="flag">⚑ ${c.report_count} user flag(s)</span>` : ""}
+      </div>
+      <p class="desc">${esc(c.body)}</p>
+      ${c.flagged && c.flag_reason ? `<div class="warn">⚑ ${esc(c.flag_reason)}</div>` : ""}
+      ${c.prior_removals > 0 ? `<div class="prior">! this account has ${c.prior_removals} removed comment(s)</div>` : ""}
+      <div class="actions">
+        <button class="keep" onclick="onComment('${c.id}','keep')">Keep</button>
+        <button onclick="onComment('${c.id}','hide')">Hide</button>
+        <button class="remove" onclick="onComment('${c.id}','remove')">Remove</button>
+      </div>
+    </div>`;
+}
+
+/* Deliberately shows the account's history alongside the name and picture.
+   "Is this handle acceptable" is a different question from "is this handle
+   acceptable coming from an account with four removed reports". */
+function identityCard(p) {
+  const face = p.avatar_key
+    ? `<img class="face" src="${esc(faceUrl(p.avatar_key))}" alt="">`
+    : `<div class="face none">—</div>`;
+  const waitingName = p.handle && p.handle_status === "pending";
+  const waitingFace = p.avatar_status === "pending";
+  return `
+    <div class="card">
+      <div class="identity">
+        ${face}
+        <div style="flex:1;min-width:0">
+          <div class="title">${esc(p.handle || "(no name chosen)")}</div>
+          <div class="meta">
+            ${p.points} pts · ${p.comments} comment(s)
+            ${p.prior_removals ? ` · <b class="warn">${p.prior_removals} removed report(s)</b>` : ""}
+          </div>
+          <div class="meta">name: ${esc(p.handle_status)} · picture: ${esc(p.avatar_status)}</div>
+        </div>
+      </div>
+      <div class="actions">
+        ${waitingName ? `
+          <button class="keep" onclick="onIdentity('${p.id}','handle','approved')">Approve name</button>
+          <button class="remove" onclick="onIdentity('${p.id}','handle','rejected')">Reject name</button>` : ""}
+        ${waitingFace ? `
+          <button class="keep" onclick="onIdentity('${p.id}','avatar','approved')">Approve picture</button>
+          <button class="remove" onclick="onIdentity('${p.id}','avatar','rejected')">Reject picture</button>` : ""}
+      </div>
+    </div>`;
+}
+
+/**
+ * One report in the archive. Shows what the queue card deliberately hides —
+ * what was decided, when, and the moderator's note — because this view exists
+ * to answer "what happened to that" rather than "what should I do". Every
+ * status is offered except the one it is already in.
+ */
+function archiveCard(item) {
+  const flags = (item.flags || [])
+    .map((f) => `<div class="warn">⚑ ${esc(f.reason)}${f.detail ? `: ${esc(f.detail)}` : ""} <span style="opacity:.6">(${esc(f.status)})</span></div>`)
+    .join("");
+  const moves = [
+    ["publish", "published", "Publish"],
+    ["hide", "hidden", "Hide"],
+    ["remove", "removed", "Remove"],
+    ["pending", "pending", "Back to queue"],
+  ]
+    .filter(([, state]) => state !== item.status)
+    .map(([decision, , label]) =>
+      `<button class="${decision === "publish" ? "publish" : decision === "remove" ? "remove" : ""}" onclick="onSetStatus('${item.id}','${decision}')">${label}</button>`)
+    .join("");
+
+  return `
+    <div class="card">
+      <div class="meta">
+        <span class="cat">${esc(CATEGORY_LABELS[item.category] || item.category)}</span>
+        <span>${esc(item.area)}</span>
+        <span>${hoursOld(item.created_at)}</span>
+        <span class="${item.status === "removed" || item.status === "hidden" ? "flag" : ""}">${esc(item.status)}</span>
+        ${item.verified ? `<span>verified</span>` : ""}
+        ${item.corroboration_count ? `<span>${item.corroboration_count} corroboration(s)</span>` : ""}
+        ${item.comment_count ? `<span>${item.comment_count} comment(s)</span>` : ""}
+        ${item.report_count > 0 ? `<span class="flag">⚑ ${item.report_count} flag(s)</span>` : ""}
+      </div>
+      <div class="reference">SENTRY-${item.id.slice(0,6).toUpperCase()}</div>
+      <h2>${evidenceText(item.title,item)}</h2>
+      ${item.description ? `<p class="desc">${evidenceText(item.description,item)}</p>` : ""}
+      ${item.flagged && item.flag_reason ? `<div class="warn">⚑ auto-screen: ${esc(item.flag_reason)}</div>` : ""}
+      ${flags}
+      ${photoBlock(item)}
+      ${videoBlock(item)}
+      ${item.moderated_at ? `<div class="prior">decided ${hoursOld(item.moderated_at)}${item.moderator_note ? ` — ${esc(item.moderator_note)}` : ""}</div>` : ""}
+      ${aiBlock(item)}
+      <div class="actions">${moves}<button onclick="showHistory('${item.id}')">Decision history</button></div>
+    </div>`;
+}
+
+/**
+ * A rejected report, in the AI view. The one mistake this app can least
+ * afford is a good report silently disappeared, so every reject the AI has
+ * made is listed here with its stated reason and a one-tap way back. The
+ * screener's rules were retightened on 17 Aug — it now only stops a report
+ * for a private person's name, where someone lives, abuse or rage-bait, or
+ * spam — so anything rejected before then deserves particular suspicion.
+ */
+function rejectCard(item) {
+  const gone = item.status === "removed" || item.status === "hidden";
+  return `
+    <div class="card">
+      <div class="meta">
+        <span class="cat">${esc(CATEGORY_LABELS[item.category] || item.category)}</span>
+        <span>${esc(item.area)}</span>
+        <span>${hoursOld(item.created_at)}</span>
+        <span class="${gone ? "flag" : ""}">${esc(item.status)}</span>
+      </div>
+      <div class="reference">SENTRY-${item.id.slice(0,6).toUpperCase()}</div>
+      <h2>${evidenceText(item.title,item)}</h2>
+      ${item.description ? `<p class="desc">${evidenceText(item.description,item)}</p>` : ""}
+      ${photoBlock(item)}
+      ${videoBlock(item)}
+      ${aiBlock(item)}
+      <div class="actions">
+        ${gone
+          ? `<button class="restore" onclick="onSetStatus('${item.id}','publish')">Restore — publish it</button>
+             <button onclick="onSetStatus('${item.id}','pending')">Back to queue</button>`
+          : `<span class="stat" style="align-self:center">Already ${esc(item.status)} — you overruled this one.</span>`}
+      </div>
+    </div>`;
+}
+
+/* The audit questions, as one predicate. "Overturned" is the one worth
+   opening most days: what trusting the AI has actually cost, both ways. */
+function isOverturned(r) {
+  return (r.ai_verdict === "publish" && ["removed", "hidden"].includes(r.status))
+      || (r.ai_verdict === "reject" && r.status === "published");
+}
+function matchesAi(r) {
+  switch (aiFilter) {
+    case "auto":       return r.ai_verdict === "publish" && r.status === "published";
+    case "rejected":   return r.ai_verdict === "reject";
+    case "refer":      return r.ai_verdict === "refer";
+    case "overturned": return isOverturned(r);
+    case "none":       return !r.ai_reviewed_at;
+    default:           return true;
+  }
+}
+
+/* ---------------------------------------------------------------- views */
+function queueView() {
+  const human=queue.filter(r=>r.review_stage==='human');
+  const automatic=queue.filter(r=>r.review_stage!=='human');
+  let out=`<div class="section"><h3>Needs your decision</h3><span class="n">${human.length+comments.length+identities.length}</span></div>`;
+  out+=human.length?human.map(incidentCard).join(''):'<p class="quiet">No reports need a human decision.</p>';
+  out+=comments.map(commentCard).join('')+identities.map(identityCard).join('');
+  if(automatic.length) out+=`<div class="section"><h3>In progress</h3><span class="n">${automatic.length}</span></div><p class="quiet">These reports are still moving through uploads or automatic review. You do not need to approve them manually.</p>`+automatic.map(r=>`<div class="card" data-report="${r.id}">${stageBlock(r)}<h2>${esc(r.title)}</h2><p class="quiet">${esc(r.area)} · SENTRY-${r.id.slice(0,6).toUpperCase()}</p></div>`).join('');
+  if(dashboard?.queue_total>queue.length)out+='<p class="quiet">Showing the first 200 priority queue entries. Use Everything to search all reports.</p>';
+  return out;
+}
+
+function aiView() {
+  if (!allLoaded) return `<div class="empty">Loading the AI's history…</div>`;
+  const rejects = all.filter((r) => r.ai_verdict === "reject")
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const stillGone = rejects.filter((r) => r.status === "removed" || r.status === "hidden");
+  const overturned = all.filter(isOverturned);
+  const autoPublished = all
+    .filter((r) => r.ai_verdict === "publish" && r.status === "published")
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, 20);
+
+  let out = "";
+  if (score) {
+    out += `
+    <div class="score">
+      <div><b>${score.auto_published}</b><span>auto-published</span></div>
+      <div><b>${score.referred}</b><span>sent to you</span></div>
+      <div><b>${score.auto_rejected}</b><span>auto-rejected</span></div>
+      <div class="${score.overturned_publish ? "warn" : ""}"><b>${score.overturned_publish}</b><span>you overturned</span></div>
+      <div><b>${score.median_seconds != null ? score.median_seconds + "s" : "—"}</b><span>median review</span></div>
+      ${score.awaiting ? `<div class="warn"><b>${score.awaiting}</b><span>unscreened</span></div>` : ""}
+    </div>`;
+  }
+  out += `<p class="hint">The screener stops a report for four things only: a private
+    person's name, where someone lives, abuse or rage-bait, and spam. Faces,
+    number plates and business names are never a reason. Its rules were
+    retightened on 17 Aug — treat anything it rejected before then with
+    suspicion.</p>`;
+
+  out += `<div class="section"><h3>Rejected by the AI</h3><span class="n">${rejects.length}</span>
+    <span class="sub">${stillGone.length ? `${stillGone.length} still down — each has a one-tap Restore` : "none still down"}</span></div>`;
+  out += rejects.length
+    ? rejects.map(rejectCard).join("")
+    : `<div class="stat">It has never rejected anything in the last 500 reports.</div>`;
+
+  if (overturned.length) {
+    out += `<div class="section"><h3>You overturned</h3><span class="n">${overturned.length}</span>
+      <span class="sub">where you and the AI disagreed — the best measure of whether to trust it</span></div>`;
+    out += overturned.map(archiveCard).join("");
+  }
+
+  out += `<div class="section"><h3>Auto-published lately</h3><span class="n">${autoPublished.length}</span>
+    <span class="sub">spot-check — these went live without a human</span></div>`;
+  out += autoPublished.length
+    ? autoPublished.map((r) => `
+      <div class="row">
+        <div class="rmeta">
+          <div class="rtitle">${esc(r.title)}</div>
+          <div class="rsub">${esc(CATEGORY_LABELS[r.category] || r.category)} · ${esc(r.area)} · ${hoursOld(r.created_at)} · ${r.ai_confidence != null ? Math.round(r.ai_confidence * 100) + "% confident" : ""}</div>
+        </div>
+        <button onclick="onSetStatus('${r.id}','remove')">Remove</button>
+      </div>`).join("")
+    : `<div class="stat">Nothing auto-published yet.</div>`;
+  return out;
+}
+
+function allView() {
+  return `<form class="filters" id="searchForm">
+    <label>Search title or reference<input name="search" value="${esc(searchText)}" placeholder="SENTRY-123ABC"></label>
+    <label>Area<select name="area"><option value="">All areas</option>${(dashboard?.areas||[]).map(a=>`<option ${areaFilter===a?'selected':''} value="${esc(a)}">${esc(a)}</option>`).join('')}</select></label>
+    <label>Status<select name="status">${['','pending','published','hidden','removed'].map(a=>`<option value="${a}" ${allFilter===a?'selected':''}>${a||'All statuses'}</option>`).join('')}</select></label>
+    <label>From (UTC)<input name="since" type="date" value="${esc(sinceDate)}"></label>
+    <label>Through (UTC)<input name="until" type="date" value="${esc(untilDate)}"></label>
+    <button type="submit">Search</button></form>
+    <p class="quiet">${all.length} loaded. Search covers the full history, including hidden dummy reports.</p>
+    ${!allLoaded?'<p role="status">Loading reports…</p>':all.length?all.map(archiveCard).join(''):'<p>No reports match these filters.</p>'}
+    ${moreReports?'<button onclick="loadMore()">Load 50 more</button>':''}`;
+}
+
+function render() {
+  if (!session) {renderSetup();return;}
+  if (!allLoaded && view !== "queue") {
+    // fire the load, then re-render when it lands
+    ensureAll().then(render).catch((e) => {
+      if (!(e instanceof AuthError)) toast(e.message, true);
+    });
+  }
+  const needs = queue.filter(r=>r.review_stage==='human').length + comments.length + identities.length;
+  const rejectsUp = allLoaded
+    ? all.filter((r) => r.ai_verdict === "reject" && (r.status === "removed" || r.status === "hidden")).length
+    : (score ? score.auto_rejected : 0);
+  const body =
+    view === "queue" ? queueView()
+    : view === "ai" ? aiView()
+    : allView();
+  document.getElementById("app").innerHTML = `
+    <header>
+      <div class="kicker">SENTRY</div>
+      <h1>Moderation</h1>
+      <span class="env">Private moderator dashboard</span>
+    </header>
+    ${healthLine()}
+    <div class="tabs">
+      <button class="${view === "queue" ? "on" : ""}" onclick="setView('queue')">Needs you${needs ? `<span class="n">${needs}</span>` : ""}</button>
+      <button class="${view === "ai" ? "on" : ""}" onclick="setView('ai')">AI calls${rejectsUp ? `<span class="n">${rejectsUp}</span>` : ""}</button>
+      <button class="${view === "all" ? "on" : ""}" onclick="setView('all')">Everything</button>
+    </div>
+    ${body}
+    <footer>
+      <a onclick="refreshUI()">Refresh</a>
+      <a onclick="logOut()">Sign out</a>
+      <span style="margin-left:auto">${lastChecked?`Checked ${lastChecked.toLocaleTimeString()}`:'Not checked yet'} · Queue refreshes every 30s while open</span>
+    </footer>`;
+  const form=document.getElementById('searchForm');
+  if(form)form.onsubmit=guard(async e=>{e.preventDefault();const values=new FormData(form);
+    searchText=String(values.get('search')||'');areaFilter=String(values.get('area')||'');allFilter=String(values.get('status')||'');
+    sinceDate=String(values.get('since')||'');untilDate=String(values.get('until')||'');
+    if(sinceDate && untilDate && sinceDate>untilDate){toast('Choose an end date after the start date.',true);return;}
+    allLoaded=false;await ensureAll();render();});
+}
+
+/* Decision dialogs keep the reason beside the action. A stale status is
+   rejected by the database, so two moderators cannot silently overwrite work. */
+function findReport(id){return queue.find(r=>r.id===id)||all.find(r=>r.id===id);}
+function openDecision(id,decision) {
+  const item=findReport(id);if(!item)return;
+  const dialog=document.getElementById('decisionDialog');
+  dialog.innerHTML=`<h2 id="dialogTitle">${({publish:'Publish report',hide:'Keep report hidden',remove:'Remove report',pending:'Return to review'})[decision]}</h2>
+    <p>${esc(item.title)}</p><label>Reason<select id="decisionReason"><option value="">Choose a reason</option>
+    ${['No rule breach','Exposed personal details','Abuse or threats','Commercial spam or scam','Needs more review','Correction of an earlier decision'].map(r=>`<option>${r}</option>`).join('')}</select></label>
+    <label>Additional explanation (optional)<textarea id="decisionNote" maxlength="400"></textarea></label>
+    <p class="quiet">This changes public visibility. Existing notifications cannot be recalled.</p>
+    <div class="tools"><button id="confirmDecision">Confirm decision</button><button id="cancelDecision">Cancel</button></div>`;
+  dialog.showModal();document.getElementById('cancelDecision').onclick=()=>dialog.close();
+  document.getElementById('confirmDecision').onclick=guard(async()=>{
+    const reason=document.getElementById('decisionReason').value;if(!reason){toast('Choose a reason first.',true);return;}
+    const button=document.getElementById('confirmDecision');button.disabled=true;
+    try {await rpc('mod_review_decision',{target:id,decision,expected_status:item.status,note:reason+(document.getElementById('decisionNote').value.trim()?' — '+document.getElementById('decisionNote').value.trim():'')});
+      dialog.close();await refreshUI();toast('Decision saved. Open Decision history to undo.');
+    } finally {button.disabled=false;}
+  });
+}
+window.showHistory=guard(async(id)=>{
+  const rows=await rpc('mod_decision_history',{target:id});
+  const dialog=document.getElementById('decisionDialog');
+  dialog.innerHTML=`<h2 id="dialogTitle">Decision history</h2><p class="quiet">Recorded from this dashboard launch. Older decisions have no reconstructed audit trail.</p>`+
+    (rows.length?rows.map((r,n)=>`<div class="history-row"><b>${esc(r.previous_status)} → ${esc(r.next_status)}</b><p>${esc(r.reason||'No reason recorded')}</p>
+    <span class="quiet">${esc(new Date(r.happened_at).toLocaleString())} · ${r.actor_kind==='moderator'?'Moderator '+esc(r.actor.slice(0,8)):r.actor_kind==='neighbour'?'Neighbour report / flag':'Automatic / system'}</span>
+    ${n===0&&r.actor_kind==='moderator'&&!r.undone_by?`<p><button onclick="undoDecision(${r.id})">Undo this decision</button></p>`:''}${r.undone_by?'<p class="quiet">Undone</p>':''}</div>`).join(''):'<p>No decisions recorded yet.</p>')+
+    `<p><button onclick="document.getElementById('decisionDialog').close()">Close</button></p>`;
+  dialog.showModal();
+});
+window.undoDecision=guard(async(id)=>{await rpc('mod_undo_decision',{decision_id:id});document.getElementById('decisionDialog').close();await refreshUI();toast('Decision undone. History preserved.');});
+window.loadMore=guard(async()=>{await ensureAll(true);render();});
+
+/* ------------------------------------------------------------------ wiring */
+window.setView = (v) => { view = v; render(); };
+window.onIncident = openDecision;
+window.onComment = guard(decideComment);
+window.onBar = guard(barAuthor);
+window.onIdentity = guard(decideIdentity);
+window.onSetStatus = openDecision;
+window.onRetryAi = guard(retryAi);
+window.setAllFilter = (v) => { allFilter = v; render(); };
+window.setAiFilter = (v) => { aiFilter = v; render(); };
+window.refreshUI = guard(async () => {
+  stuck.clear();
+  await load();
+  if (allLoaded) { allLoaded = false; await ensureAll(); }
+  render();
+  toast("Refreshed");
+});
+window.logOut = () => {
+  signOutLocal();
+  renderSetup();
+};
+
+async function refresh() {
+  await load();
+  render();
+}
+
+async function automaticRefresh() {
+  if(!session||document.hidden||refreshing||document.getElementById('decisionDialog').open)return;
+  if(document.querySelector('input:focus,textarea:focus,select:focus')||[...document.querySelectorAll('video')].some(v=>!v.paused))return;
+  refreshing=true;
+  const anchor=[...document.querySelectorAll('[data-report]')].find(el=>el.getBoundingClientRect().top>=0);
+  const anchorId=anchor?.dataset.report,offset=anchor?.getBoundingClientRect().top,scroll=window.scrollY;
+  try {await load();
+    // Someone may start typing/watching while the request is in flight.
+    // Keep their DOM intact until the next quiet refresh.
+    if(document.getElementById('decisionDialog').open||document.querySelector('input:focus,textarea:focus,select:focus')||[...document.querySelectorAll('video')].some(v=>!v.paused))return;
+    render();const next=anchorId?document.querySelector(`[data-report="${anchorId}"]`):null;
+    window.scrollTo(0,next?window.scrollY+next.getBoundingClientRect().top-offset:scroll);
+  } catch(e){if(!(e instanceof AuthError))toast('Refresh failed. Showing the last loaded data. Retry when connected.',true);}
+  finally {refreshing=false;}
+}
+setInterval(automaticRefresh,30000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)automaticRefresh();});
+
+if (!session) renderSetup();
+else {
+  refresh().catch((e) => {
+    // Only a real 401 means the session is gone. Everything else keeps you
+    // signed in and offers a retry.
+    if (e instanceof AuthError) return;   // renderSetup already called
+    renderLoadError(e.message);
+  });
+}
+</script>
+</body>
+</html>
