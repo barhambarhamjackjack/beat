@@ -380,11 +380,14 @@ async function loadScore() {
    load(): the queue is what you open this page for, and making the daily
    check wait on five hundred rows of archive would be the wrong trade. The
    AI view and the Everything view both need it, so it loads once for either. */
+let archiveRequest=0;
 async function ensureAll(append=false) {
   if (allLoaded && !append) return;
+  const request=++archiveRequest;
   const last=append ? all[all.length-1] : null;
   const rows=await rpc("mod_search_reports",{search_text:searchText,area_filter:areaFilter,status_filter:allFilter,
     since_date:sinceDate||null,until_date:untilDate||null,cursor_at:last?.created_at||null,cursor_id:last?.id||null});
+  if(!session||request!==archiveRequest)return;
   moreReports=rows.length===50;
   all=append ? [...all,...rows] : rows;
   allLoaded=true;
@@ -1042,6 +1045,7 @@ function openDecision(id,decision) {
 }
 window.showHistory=guard(async(id)=>{
   const rows=await rpc('mod_decision_history',{target:id});
+  if(!session)return;
   const dialog=document.getElementById('decisionDialog');
   dialog.innerHTML=`<h2 id="dialogTitle">Decision history</h2><p class="quiet">Recorded from this dashboard launch. Older decisions have no reconstructed audit trail.</p>`+
     (rows.length?rows.map((r,n)=>`<div class="history-row"><b>${esc(r.previous_status)} → ${esc(r.next_status)}</b><p>${esc(r.reason||'No reason recorded')}</p>
