@@ -1,4 +1,4 @@
-# Sentry — legal & support site
+# Bobby — legal & support site
 
 Five static pages. No build step, no dependencies.
 
@@ -44,7 +44,7 @@ an automatic rejection, and it is the easiest one to avoid.
 
 ## A note on these documents
 
-They are written specifically for Sentry as it actually behaves — Sign in with
+They are written specifically for Bobby as it actually behaves — Sign in with
 Apple, anonymous display, moderated user content, foreground location plus
 automated screening with
 a human behind it, and a UK sole trader as controller.
