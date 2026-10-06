@@ -4,10 +4,10 @@ Five static pages. No build step, no dependencies.
 
 ## These files are OUTPUT. Edit the generator.
 
-`../_gensite.py` writes every file in this folder. Editing the HTML directly
+`docs/website/generate.py` in the private app repository writes every file in this folder. Editing the HTML directly
 works right up until somebody regenerates, and then it silently doesn't.
 
-    python3 _gensite.py
+    python3 docs/website/generate.py /path/to/output
 
 ## Why that matters more than it sounds
 
